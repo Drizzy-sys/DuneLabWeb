@@ -1,0 +1,10 @@
+# Secrets pour le développement local (wrangler dev).
+# Copier ce fichier en « .dev.vars » (non versionné).
+
+# Clé secrète de TEST fournie par Cloudflare : la vérification réussit toujours.
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
+
+# 1 = les emails du formulaire sont affichés dans le terminal, pas envoyés.
+# Pour tester un vrai envoi en local : mettre 0 et renseigner RESEND_API_KEY.
+EMAIL_DRY_RUN=1
+RESEND_API_KEY=

@@ -1,0 +1,27 @@
+// Configuration Cloudflare Workers du site Dune Lab
+// Documentation : https://developers.cloudflare.com/workers/wrangler/configuration/
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dunelab",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-09-01",
+
+  // Fichiers du site, servis tels quels
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    // Seules les requêtes vers /api/ passent par le code du Worker
+    "run_worker_first": ["/api/*"]
+  },
+
+  // Emails du formulaire, envoyés par Resend (clé API : secret RESEND_API_KEY)
+  "vars": {
+    // Adresse qui reçoit les demandes de devis. À COMPLÉTER.
+    "MAIL_TO": "contact@example.com",
+    // Expéditeur : une adresse du domaine vérifié dans Resend. À COMPLÉTER.
+    "MAIL_FROM": "formulaire@example.com"
+  },
+
+  "observability": { "enabled": true }
+}

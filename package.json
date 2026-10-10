@@ -1,0 +1,12 @@
+{
+  "name": "dunelab-site",
+  "private": true,
+  "description": "Site vitrine Dune Lab : fichiers statiques (public/) et formulaire de devis (src/worker.js) sur Cloudflare Workers",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.149.0"
+  }
+}
