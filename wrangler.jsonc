@@ -11,16 +11,55 @@
     "directory": "./public",
     "binding": "ASSETS",
     "not_found_handling": "404-page",
-    // Seules les requêtes vers /api/ passent par le code du Worker
-    "run_worker_first": ["/api/*"]
+    // Ces adresses passent d'abord par le code du Worker : le formulaire,
+    // et l'espace admin (vérification de Cloudflare Access avant tout fichier)
+    "run_worker_first": ["/api/*", "/admin", "/admin/*"]
   },
 
-  // Emails du formulaire, envoyés par Resend (clé API : secret RESEND_API_KEY)
+  // Base de l'espace admin (clients, devis, factures). Créée par :
+  //   npx wrangler d1 create dunelab-admin --jurisdiction eu
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "dunelab-admin",
+      // À COMPLÉTER : identifiant affiché par la commande ci-dessus
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // Archives : PDF des devis, factures et avoirs, sauvegardes de la base. Créé par :
+  //   npx wrangler r2 bucket create dunelab-archives --jurisdiction eu
+  "r2_buckets": [
+    {
+      "binding": "ARCHIVES",
+      "bucket_name": "dunelab-archives",
+      "jurisdiction": "eu"
+    }
+  ],
+
+  // Sauvegarde de la base dans R2, chaque nuit à 3 h UTC
+  "triggers": { "crons": ["0 3 * * *"] },
+
   "vars": {
+    // Emails du formulaire, envoyés par Resend (clé API : secret RESEND_API_KEY)
     // Adresse qui reçoit les demandes de devis. À COMPLÉTER.
     "MAIL_TO": "contact@example.com",
     // Expéditeur : une adresse du domaine vérifié dans Resend. À COMPLÉTER.
-    "MAIL_FROM": "formulaire@example.com"
+    "MAIL_FROM": "formulaire@example.com",
+
+    // Espace admin protégé par Cloudflare Access (voir README, « Espace admin »)
+    // Domaine de l'équipe Zero Trust. À COMPLÉTER.
+    "ACCESS_TEAM_DOMAIN": "https://À-COMPLÉTER.cloudflareaccess.com",
+    // « Application Audience (AUD) Tag » de l'application Access. À COMPLÉTER.
+    "ACCESS_AUD": "À COMPLÉTER",
+    // Seule adresse autorisée à ouvrir l'admin. À COMPLÉTER.
+    "ADMIN_EMAIL": "À COMPLÉTER",
+
+    // Facturation électronique (obligatoire en septembre 2027) : plateforme agréée
+    // à laquelle les factures émises sont transmises. « aucun » tant que rien n'est
+    // branché ; connecteurs disponibles dans src/admin/connecteurs/.
+    "FACTURATION_ELECTRONIQUE": "aucun"
   },
 
   "observability": { "enabled": true }

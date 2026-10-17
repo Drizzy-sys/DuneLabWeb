@@ -8,3 +8,7 @@ TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 # Pour tester un vrai envoi en local : mettre 0 et renseigner RESEND_API_KEY.
 EMAIL_DRY_RUN=1
 RESEND_API_KEY=
+
+# Espace admin : en local, Cloudflare Access n'existe pas. 1 = accès libre à
+# http://localhost:8787/admin/ (uniquement sur localhost, jamais en ligne).
+ADMIN_ACCES_LOCAL=1

@@ -8,9 +8,16 @@
        3. envoie la demande par email (API Resend).
      Réponse JSON : { ok: true, message } ou { ok: false, message, errors }.
 
+   - Espace admin privé (devis, factures) : /admin et /api/admin/*,
+     protégés par Cloudflare Access (voir src/admin/).
+   - Sauvegarde nocturne de la base de l'admin dans R2 (tâche planifiée).
+
    Réglages : adresses email dans wrangler.jsonc (section « vars »),
    secrets TURNSTILE_SECRET_KEY et RESEND_API_KEY (voir README).
    ========================================================================== */
+
+import { estRouteAdmin, gererAdmin } from "./admin/index.js";
+import { sauvegarderDansR2 } from "./admin/sauvegarde.js";
 
 const TEXTS = {
   fr: {
@@ -55,7 +62,13 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === "/api/contact") return handleContact(request, env);
+    if (estRouteAdmin(url.pathname)) return gererAdmin(request, env);
     return env.ASSETS.fetch(request);
+  },
+
+  // Tâche planifiée (wrangler.jsonc, « triggers ») : sauvegarde de la base dans R2
+  async scheduled(controller, env, ctx) {
+    ctx.waitUntil(sauvegarderDansR2(env, new Date(controller.scheduledTime)));
   },
 };
 

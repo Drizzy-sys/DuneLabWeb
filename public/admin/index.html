@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <title>Admin · Dune Lab</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/admin/admin.css">
+  <script type="module" src="/admin/js/app.js"></script>
+</head>
+<body>
+  <a class="evitement" href="#contenu">Aller au contenu</a>
+
+  <header class="barre">
+    <a class="barre__logo" href="#/">
+      <img src="/assets/img/logo.svg" alt="Dune Lab" width="105" height="25">
+      <span>Admin</span>
+    </a>
+    <nav class="barre__nav" aria-label="Espace admin">
+      <a href="#/" data-section="tableau">Tableau de bord</a>
+      <a href="#/devis" data-section="devis">Devis</a>
+      <a href="#/factures" data-section="factures">Factures</a>
+      <a href="#/clients" data-section="clients">Clients</a>
+      <a href="#/grille" data-section="grille">Grille tarifaire</a>
+    </nav>
+    <a class="barre__site" href="/fr/">Voir le site</a>
+  </header>
+
+  <main id="contenu" class="contenu" tabindex="-1">
+    <p class="chargement">Chargement…</p>
+  </main>
+
+  <div id="notifications" class="notifications" role="status" aria-live="polite"></div>
+</body>
+</html>

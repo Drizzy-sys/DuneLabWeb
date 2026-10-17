@@ -1,12 +1,21 @@
 {
   "name": "dunelab-site",
   "private": true,
-  "description": "Site vitrine Dune Lab : fichiers statiques (public/) et formulaire de devis (src/worker.js) sur Cloudflare Workers",
+  "description": "Site vitrine Dune Lab (public/), formulaire de devis et espace admin de devis et factures (src/) sur Cloudflare Workers",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "test": "node --experimental-sqlite --no-warnings --test tests/*.test.js",
+    "db:local": "wrangler d1 migrations apply DB --local",
+    "db:distant": "wrangler d1 migrations apply DB --remote",
+    "sauvegarde": "node scripts/sauvegarder.js"
   },
   "devDependencies": {
     "wrangler": "^4.149.0"
-  }
+  },
+  "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
+    "pdf-lib": "^1.17.1"
+  },
+  "type": "module"
 }

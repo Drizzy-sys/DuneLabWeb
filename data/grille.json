@@ -1,0 +1,201 @@
+{
+  "version": "0.1",
+  "date": "2026-10-15",
+  "statut": "brouillon à ajuster selon les retours clients",
+  "devise": "EUR",
+  "prix": "HT",
+  "tva": {
+    "regime": "franchise_en_base",
+    "taux_si_assujetti": 0.20,
+    "mention_franchise": "TVA non applicable, art. 293 B du CGI",
+    "seuil_franchise": 37500,
+    "note":"En franchise, prix HT = prix payé par le client. Passer en 'assujetti' si le CA dépasse le seuil ou sur option."
+  },
+  "emetteur": {
+    "denomination": "Dune Lab",
+    "forme": "SASU",
+    "capital": "1 000 €",
+    "siege": "20 Avenue des Pinsons, 33115 La Teste-de-Buch",
+    "siren": "À COMPLÉTER",
+    "rcs": "RCS Bordeaux À COMPLÉTER",
+    "email": "À COMPLÉTER",
+    "iban": "À COMPLÉTER (Qonto)",
+    "tva_intracom": ""
+  },
+  "categories": [
+    {
+      "id": "site",
+      "nom": "Sites web",
+      "choix_unique": true,
+      "questions": [
+        {
+          "theme": "Projet et contenu",
+          "questions": [
+            "Le client a-t-il déjà un nom de domaine ? Un site existant (adresse, hébergeur, accès) ?",
+            "Combien de pages, et lesquelles (accueil, services, à propos, contact…) ?",
+            "Quelles rubriques dans le menu ? Que doit-on voir en premier sur la page d'accueil ?",
+            "Qui fournit les textes et les photos ? Sont-ils prêts ?",
+            "Fonctionnalités : formulaire, réservation, paiement, blog, plusieurs langues, espace membre ?",
+            "Éléments indispensables : horaires, plan d'accès, avis clients, réseaux sociaux, bouton d'appel, newsletter ?",
+            "Boutique : nombre de produits, moyens de paiement, livraison, gestion des stocks ?",
+            "Référencement : mots-clés, zone géographique, fiche Google Business Profile ?",
+            "Qui mettra le site à jour ensuite ? Faut-il une formation ?"
+          ]
+        },
+        {
+          "theme": "Forme et identité visuelle",
+          "questions": [
+            "Quelle impression le site doit-il donner, en trois mots (chaleureux, haut de gamme, sobre, ludique…) ?",
+            "Logo et charte graphique : existent-ils ? Le logo est-il disponible en vectoriel (SVG, PDF) ?",
+            "Couleurs : celles de la marque, celles à éviter ? Plutôt fond clair ou sombre ?",
+            "Typographie : polices imposées par la charte, ou style souhaité (classique, moderne, manuscrit, arrondi) ?",
+            "Photos et illustrations : fournies par le client, banque d'images ou séance photo ? Quel style d'images ?",
+            "Trois sites qu'il aime (et pourquoi), et un site qui ne lui plaît pas ?",
+            "Ton des textes : vouvoiement ou tutoiement, plutôt institutionnel ou proche ?",
+            "Sur quel écran le site sera-t-il surtout consulté (téléphone, ordinateur) ? Des besoins d'accessibilité (personnes âgées, malvoyantes) ?"
+          ]
+        }
+      ],
+      "prestations": [
+        {"id": "site-onepage", "nom": "Site vitrine une page", "description": "Page unique responsive, formulaire de contact, mise en ligne", "prix": 900, "unite": "forfait", "delai_jours": 10, "incompatible_avec": ["opt-page", "opt-blog"]},
+        {"id": "site-vitrine", "nom": "Site vitrine jusqu'à 5 pages", "description": "Maquette, intégration responsive, formulaire de contact, SEO de base, mise en ligne", "prix": 1800, "unite": "forfait", "delai_jours": 20},
+        {"id": "site-ecommerce", "nom": "Boutique en ligne", "description": "Catalogue jusqu'à 30 produits, paiement en ligne, gestion des commandes", "prix": 3500, "unite": "forfait", "a_partir_de": true, "delai_jours": 40, "incompatible_avec": ["opt-paiement"]},
+        {"id": "site-refonte", "nom": "Refonte d'un site existant", "description": "Reprise du contenu et nouvelle version du site", "prix": 1500, "unite": "forfait", "a_partir_de": true}
+      ]
+    },
+    {
+      "id": "option",
+      "nom": "Options de site",
+      "options_de": "site",
+      "prestations": [
+        {"id": "opt-page", "nom": "Page supplémentaire", "prix": 150, "unite": "page", "incompatible_avec": ["site-onepage"]},
+        {"id": "opt-redaction", "nom": "Rédaction de contenu", "prix": 90, "unite": "page"},
+        {"id": "opt-langue", "nom": "Version dans une autre langue", "description": "Hors traduction des textes", "prix": 400, "unite": "langue"},
+        {"id": "opt-blog", "nom": "Blog / actualités", "prix": 400, "unite": "forfait", "incompatible_avec": ["site-onepage"]},
+        {"id": "opt-reservation", "nom": "Réservation ou prise de rendez-vous en ligne", "prix": 500, "unite": "forfait"},
+        {"id": "opt-paiement", "nom": "Paiement en ligne (site vitrine)", "prix": 400, "unite": "forfait", "incompatible_avec": ["site-ecommerce"]},
+        {"id": "opt-seo", "nom": "Référencement renforcé", "description": "Mots-clés, balises, Google Business Profile, Search Console", "prix": 350, "unite": "forfait"},
+        {"id": "opt-logo", "nom": "Logo et charte graphique simple", "prix": 450, "unite": "forfait"},
+        {"id": "opt-migration", "nom": "Migration de contenu depuis l'ancien site", "prix": 300, "unite": "forfait", "a_partir_de": true},
+        {"id": "opt-urgence", "nom": "Livraison express", "description": "Délai divisé par deux", "prix_pourcentage": 0.25, "unite": "majoration"}
+      ]
+    },
+    {
+      "id": "dev",
+      "nom": "Développement sur mesure",
+      "questions": [
+        "Quel problème l'outil doit-il résoudre ? Comment est-ce fait aujourd'hui ?",
+        "Qui l'utilisera, combien de personnes, sur quels appareils ?",
+        "Avec quels outils doit-il communiquer (tableur, CRM, comptabilité, API) ?",
+        "Quelles données manipule-t-il ? Y a-t-il des données personnelles (RGPD) ?",
+        "Qui héberge et maintient l'outil après la livraison ?"
+      ],
+      "prestations": [
+        {"id": "dev-jour", "nom": "Développement logiciel / application web", "description": "Facturé au temps passé ou en forfait estimé en jours", "prix": 400, "unite": "jour"},
+        {"id": "dev-demi-jour", "nom": "Développement, demi-journée", "prix": 220, "unite": "demi-journée"},
+        {"id": "dev-automatisation", "nom": "Automatisation / outil interne", "description": "Script, connexion entre outils, tableau de bord", "prix": 800, "unite": "forfait", "a_partir_de": true}
+      ]
+    },
+    {
+      "id": "conseil",
+      "nom": "Conseil et formation",
+      "questions": [
+        "Quel est l'objectif de l'audit, de l'atelier ou de la formation ?",
+        "Combien de participants, de quel niveau, en présentiel ou à distance ?",
+        "Quels accès faut-il (site, statistiques, outils) ?"
+      ],
+      "prestations": [
+        {"id": "cons-audit", "nom": "Audit de site ou d'outil existant", "description": "Rapport écrit + restitution d'une heure", "prix": 450, "unite": "forfait"},
+        {"id": "cons-atelier", "nom": "Atelier stratégie digitale", "prix": 250, "unite": "demi-journée"},
+        {"id": "cons-formation", "nom": "Formation (prise en main du site, outils)", "prix": 250, "unite": "demi-journée"},
+        {"id": "cons-heure", "nom": "Conseil ponctuel", "prix": 60, "unite": "heure"}
+      ]
+    },
+    {
+      "id": "gestion",
+      "nom": "Outils de gestion",
+      "questions": [
+        "Combien de devis et de factures le client émet-il par mois ?",
+        "Comment fait-il aujourd'hui (tableur, logiciel, à la main) ? Faut-il reprendre l'historique ?",
+        "Régime de TVA : franchise en base ou assujetti ? Quels taux ?",
+        "Quelle plateforme de facturation électronique agréée utilise-t-il ou prévoit-il (Qonto ou autre) ?",
+        "A-t-il une grille tarifaire à reprendre, des conditions de paiement ou un échéancier habituels ?",
+        "Logo, mentions légales, SIREN, IBAN : tout est-il disponible ?",
+        "Qui utilisera l'outil ? Faut-il une formation ?"
+      ],
+      "prestations": [
+        {"id": "gest-installation", "nom": "Espace admin devis et factures", "description": "Installation et paramétrage : grille tarifaire, numérotation légale, PDF à vos couleurs, tableau de bord, connexion à votre plateforme de facturation électronique agréée (Qonto ou autre)", "prix": 1200, "unite": "forfait", "a_partir_de": true},
+        {"id": "gest-abonnement", "nom": "Abonnement espace admin devis et factures", "description": "Hébergement, sauvegardes, support et mises à jour réglementaires (facturation électronique 2027)", "prix": 29, "unite": "mois"},
+        {"id": "gest-personnalisation", "nom": "Personnalisation de l'outil", "description": "Au temps passé, au tarif journalier du développement sur mesure", "prix": 400, "unite": "jour"}
+      ]
+    },
+    {
+      "id": "recurrent",
+      "nom": "Abonnements",
+      "questions": [
+        "Où est hébergé le site aujourd'hui ? Qui détient les accès (domaine, hébergement, e-mails) ?",
+        "À quelle date l'abonnement doit-il commencer ?",
+        "Combien de modifications par mois le client prévoit-il ?"
+      ],
+      "prestations": [
+        {"id": "abo-essentiel", "nom": "Hébergement + maintenance Essentiel", "description": "Hébergement, sauvegardes, mises à jour de sécurité", "prix": 39, "unite": "mois"},
+        {"id": "abo-serenite", "nom": "Maintenance Sérénité", "description": "Essentiel + 1 h de modifications par mois + support prioritaire", "prix": 89, "unite": "mois"},
+        {"id": "abo-domaine", "nom": "Nom de domaine", "description": "Refacturé au prix coûtant", "prix": 15, "unite": "an", "a_partir_de": true},
+        {"id": "abo-intervention", "nom": "Intervention hors abonnement", "prix": 60, "unite": "heure"}
+      ]
+    }
+  ],
+  "questions_generales": [
+    "Quel est le projet en une phrase, et pour qui (clientèle, cible) ?",
+    "Quelle date de livraison est souhaitée ? Y a-t-il une contrainte (ouverture, salon, saison) ?",
+    "Qui valide les étapes côté client, et comment préfère-t-il échanger ?",
+    "Quel budget a-t-il en tête ?"
+  ],
+  "remises": [
+    {"id": "rem-lancement", "nom": "Offre de lancement (premiers clients, contre un avis/témoignage)", "pourcentage": 0.15},
+    {"id": "rem-asso", "nom": "Association", "pourcentage": 0.10}
+  ],
+  "conditions": {
+    "validite_devis_jours": 30,
+    "echeancier_forfait": [
+      {"etape": "Acompte à la signature", "pourcentage": 0.30},
+      {"etape": "Validation de la maquette", "pourcentage": 0.40},
+      {"etape": "Mise en ligne / livraison", "pourcentage": 0.30}
+    ],
+    "echeancier_regie": "Facturation mensuelle du temps passé",
+    "delai_paiement_jours": 30,
+    "abonnement": "Payable mensuellement, engagement 12 mois, résiliable ensuite avec 1 mois de préavis",
+    "abonnement_debut": "à partir de la mise en ligne",
+    "abonnement_engagement_mois": 12,
+    "propriete": "Le client devient propriétaire du site et de ses contenus au paiement complet",
+    "revisions_incluses": 2
+  },
+  "mentions": {
+    "devis": [
+      "Mention « Devis » + numéro + date d'émission + durée de validité",
+      "Dune Lab, SASU au capital de 1 000 €, siège, SIREN, RCS",
+      "Nom et adresse du client (SIREN si professionnel)",
+      "Détail de chaque prestation : quantité, unité, prix unitaire HT, total",
+      "Total HT, TVA (ou mention de franchise), total TTC",
+      "Délai d'exécution, conditions de paiement, échéancier",
+      "« Bon pour accord », date et signature du client"
+    ],
+    "facture": [
+      "Numéro unique et chronologique (ex. F-2026-001), date d'émission, date ou période de la prestation",
+      "Mêmes informations émetteur et client que le devis (+ SIREN client et adresse de livraison si différente)",
+      "Nature : prestation de services",
+      "Total HT, TVA ou « TVA non applicable, art. 293 B du CGI », total TTC",
+      "Date d'échéance du paiement",
+      "Pénalités de retard : 3 fois le taux d'intérêt légal (minimum) ou taux BCE + 10 points",
+      "Indemnité forfaitaire pour frais de recouvrement de 40 € (clients professionnels)",
+      "« Pas d'escompte pour paiement anticipé »"
+    ],
+    "textes": {
+      "nature_operation": "Prestation de services",
+      "penalites_retard": "En cas de retard de paiement, des pénalités sont exigibles dès le lendemain de la date d'échéance, au taux de trois fois le taux d'intérêt légal en vigueur.",
+      "indemnite_recouvrement": "Indemnité forfaitaire pour frais de recouvrement due au créancier en cas de retard de paiement : 40 € (art. L441-10 et D441-5 du Code de commerce).",
+      "escompte": "Pas d'escompte pour paiement anticipé.",
+      "bon_pour_accord": "Bon pour accord"
+    }
+  }
+}

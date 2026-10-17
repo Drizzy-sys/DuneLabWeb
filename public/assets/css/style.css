@@ -603,6 +603,8 @@ html.menu-open .site-header { border-bottom-color: var(--color-line); }
 
 @media (min-width: 64rem) {
   .cards--3 { grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+  /* Quatre services : grille 2 × 2 */
+  .cards--4 { grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
 }
 
 /* ---------- Méthode ---------- */
