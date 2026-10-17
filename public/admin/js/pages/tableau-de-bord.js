@@ -101,7 +101,7 @@ export async function pageTableauDeBord(annee) {
               [
                 { titre: "Devis", valeur: (a) => a.devis_numero },
                 { titre: "Client", valeur: (a) => a.client_nom },
-                { titre: "Période", valeur: (a) => (a.depuis ? `${a.periodicite} à partir du ${date(a.depuis)}` : `premier ${a.periodicite}`) },
+                { titre: "Période", valeur: (a) => `${a.premiere ? "premier " : ""}${a.periodicite} à partir du ${date(a.depuis)}` },
                 { titre: "Montant HT", classe: "nombre", valeur: (a) => montant(a.montant_ht) },
               ],
               t.abonnements_a_facturer,

@@ -14,8 +14,9 @@ export const FORMAT_SAUVEGARDE = "dunelab-admin-sauvegarde";
 
 function celluleCsv(valeur) {
   let texte = String(valeur ?? "");
-  // Un texte commençant par = + @ serait exécuté comme une formule par le tableur
-  if (/^[=+@\t\r]/.test(texte)) texte = `'${texte}`;
+  // Un texte commençant par = + - @ serait exécuté comme une formule par le
+  // tableur ; un montant négatif (« -1800,00 », avoirs) reste un nombre
+  if (/^[=+@\t\r]/.test(texte) || (texte.startsWith("-") && !/^-\d+(,\d+)?$/.test(texte))) texte = `'${texte}`;
   return /[";\n\r]/.test(texte) ? `"${texte.replace(/"/g, '""')}"` : texte;
 }
 

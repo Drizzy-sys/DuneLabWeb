@@ -16,6 +16,8 @@ import { archiverPdf, clePdf, lirePdfArchive } from "./archives.js";
 import { genererPdf, vueDevis, vueSynthese } from "./pdf.js";
 // Les colonnes montant_* d'un devis sont celles du forfait, sans les abonnements
 import { calculerDevis, calculerEcheancier } from "../../public/admin/js/lib/calcul.js";
+// Dépendance circulaire sans risque : fonctions appelées seulement à l'exécution
+import { SQL_LISTE_FACTURES, devisLivre, enrichirFacture, suiviAbonnements } from "./factures.js";
 import { ajouterJours, anneeDe } from "../../public/admin/js/lib/format.js";
 
 const MODES = ["forfait", "regie", "abonnement"];
@@ -87,13 +89,12 @@ export async function listerDevis(app) {
 export async function lireDevis(app, id) {
   const devis = await ligneDevis(app, id);
   const client = await app.db.prepare("SELECT nom FROM clients WHERE id = ?").bind(devis.client_id).first();
-  const { results: factures } = await app.db
-    .prepare(
-      `SELECT id, numero, type, etape, periodicite, statut, date_emission, prestation_debut, prestation_fin, montant_ttc
-       FROM factures WHERE devis_id = ? AND serie = 'F' ORDER BY id`
-    )
-    .bind(id)
-    .all();
+  // Factures du devis avec leur statut réel (dont « annulée par avoir »), et livraison
+  const [{ results }, suivi] = await Promise.all([
+    app.db.prepare(`${SQL_LISTE_FACTURES} WHERE f.devis_id = ? AND f.serie = 'F' ORDER BY f.id`).bind(id).all(),
+    suiviAbonnements(app, id),
+  ]);
+  const factures = results.map((f) => enrichirFacture(f, app.aujourdhui));
   const calcul = calculerDevis({ lignes: devis.lignes, remise: devis.remise, taux_tva: devis.taux_tva });
   return {
     ...devis,
@@ -104,6 +105,7 @@ export async function lireDevis(app, id) {
     // Échéancier du forfait seul : les abonnements se facturent à part
     echeancier: devis.mode === "forfait" && calcul.lignes.length ? calculerEcheancier(calcul.total_ht, calcul.taux_tva, devis.contexte.conditions.echeancier) : null,
     factures,
+    livre: devisLivre(devis, suivi),
   };
 }
 
@@ -245,8 +247,16 @@ export async function envoyerDevis(app, id) {
     )
     .run();
   if (resultat.meta.changes !== 1) throw new ErreurMetier("Ce devis a déjà été envoyé.");
-  await archiverDevis(app, id);
-  return lireDevis(app, id);
+  // Archivage du PDF : en cas d'échec, le devis reste envoyé et le PDF sera
+  // archivé à sa première ouverture
+  let avertissement = null;
+  try {
+    await archiverDevis(app, id);
+  } catch (erreur) {
+    console.error(`Archivage du PDF du devis ${id} impossible :`, erreur);
+    avertissement = "Devis envoyé, mais son PDF n'a pas pu être archivé : il le sera à sa première ouverture.";
+  }
+  return { ...(await lireDevis(app, id)), avertissement };
 }
 
 async function archiverDevis(app, id) {

@@ -77,7 +77,7 @@
         {"id": "opt-seo", "nom": "Référencement renforcé", "description": "Mots-clés, balises, Google Business Profile, Search Console", "prix": 350, "unite": "forfait"},
         {"id": "opt-logo", "nom": "Logo et charte graphique simple", "prix": 450, "unite": "forfait"},
         {"id": "opt-migration", "nom": "Migration de contenu depuis l'ancien site", "prix": 300, "unite": "forfait", "a_partir_de": true},
-        {"id": "opt-urgence", "nom": "Livraison express", "description": "Délai divisé par deux", "prix_pourcentage": 0.25, "unite": "majoration"}
+        {"id": "opt-urgence", "nom": "Livraison express", "description": "Délai divisé par deux", "prix_pourcentage": 0.25, "unite": "majoration", "divise_delai": 2}
       ]
     },
     {

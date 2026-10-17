@@ -25,7 +25,14 @@ const ROUTES = [
 let adresseAffichee = null;
 
 async function afficher() {
-  const adresse = location.hash.replace(/^#/, "").split("?")[0] || "/";
+  const brut = location.hash.replace(/^#/, "");
+  // Ancre interne (lien « Aller au contenu ») : pas une page de l'admin
+  if (brut && !brut.startsWith("/")) {
+    document.getElementById(brut)?.focus();
+    history.replaceState(null, "", `#${adresseAffichee || "/"}`);
+    return;
+  }
+  const adresse = brut.split("?")[0] || "/";
   if (adresse === adresseAffichee) return;
 
   // Modifications non enregistrées : on demande avant de quitter la page

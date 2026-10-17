@@ -369,7 +369,7 @@ function totaux(z, vue) {
   if (aDeduire) {
     rangs.push(["Total TTC", formaterMontant(calcul.total_ttc)]);
     for (const d of calcul.deductions) {
-      rangs.push([`Déjà facturé : ${d.numero} du ${formaterDate(d.date_emission)}`, formaterMontant(-d.montant_ttc)]);
+      rangs.push([`${vue.genre === "avoir" ? "Déjà déduit" : "Déjà facturé"} : ${d.numero} du ${formaterDate(d.date_emission)}`, formaterMontant(-d.montant_ttc)]);
     }
   }
 

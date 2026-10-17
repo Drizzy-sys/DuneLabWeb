@@ -87,7 +87,10 @@ Espace privé sous `/admin` pour créer devis, factures et avoirs à partir de l
 - **Données** : base Cloudflare D1, hébergée dans l'UE. Les montants sont stockés en centimes, les lignes et le contexte (émetteur, client, TVA, mentions) en JSON structuré.
 - **PDF** : générés par le Worker avec pdf-lib, aux couleurs du site, polices embarquées. Le PDF d'un devis envoyé ou d'une facture émise est archivé une seule fois dans R2, avec son empreinte SHA-256 enregistrée en base. Il est ensuite toujours servi depuis R2, jamais régénéré.
 - **Numérotation** : `D-AAAA-NNN`, `F-AAAA-NNN` et `A-AAAA-NNN`. Le numéro de facture est attribué à l'émission, dans la même transaction D1 que l'incrément du compteur : pas de doublon, pas de trou, ordre chronologique.
-- **Factures émises** : ni modification ni suppression. C'est vérifié par le code et par des triggers SQL dans la base elle-même. On corrige par un avoir.
+- **Factures émises** : ni modification ni suppression. C'est vérifié par le code et par des triggers SQL dans la base elle-même. On corrige par un avoir :
+  - *Annuler par un avoir* reprend exactement la facture (lignes, remise, acomptes déduits, avoirs déjà émis) et l'annule au centime près ;
+  - *Avoir partiel* part d'une ligne libre à compléter.
+- **Ordre de l'échéancier** : pas de facture de solde tant qu'un acompte est en brouillon, et plus d'acompte une fois le solde facturé. Une étape dont la facture a été annulée par avoir peut être refacturée.
 - **Grille** : `data/grille.json` est la version initiale. Ensuite, la page *Grille tarifaire* enregistre chaque modification comme une nouvelle version (boutons pour télécharger et importer un `grille.json`). Un devis ou une facture garde les prix du moment où il a été fait.
 - **Configurateur** : dans un devis, on clique sur le type de projet (tuiles), puis on choisit la formule et les options, chacune avec son prix. Dans la grille :
   - chaque catégorie est un type de projet ;
@@ -176,7 +179,7 @@ Dans un devis, les lignes à l'unité « mois » ou « an » sont des abonnement
 
 - elles sortent du total du forfait, de l'échéancier 30/40/30, de la remise et de la base d'une majoration (livraison express) ;
 - le devis affiche le total du forfait, puis « puis 29,00 € HT/mois à partir de la mise en ligne, engagement 12 mois ». Le début et l'engagement se règlent dans *Grille tarifaire › Conditions* ;
-- une fois le devis accepté, *Facturer un mois d'abonnement* crée une facture par période. La première commence à la livraison (date de la facture de solde), les suivantes s'enchaînent ;
+- une fois le devis accepté, *Facturer un mois d'abonnement* crée une facture par période. La première commence à la livraison : facture de solde, ou, hors forfait, première facture ponctuelle. Les suivantes sont comptées depuis cette date et ne se décalent pas (31/01, 28/02, 31/03…) ;
 - le tableau de bord liste les abonnements dont la période suivante est à facturer ;
 - ce sont des factures ordinaires : elles comptent dans le chiffre d'affaires encaissé et le suivi du seuil de franchise.
 

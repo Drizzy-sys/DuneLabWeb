@@ -891,3 +891,5 @@ input.nombre { text-align: right; font-variant-numeric: tabular-nums; }
 }
 
 .cadrage__synthese .actions { margin-top: 0.5rem; }
+
+.grille__diviseur { margin-top: 0.3rem; }

@@ -90,6 +90,23 @@ function boutonRetirer(libelle, action) {
   return h("button", { type: "button", class: "bouton-icone bouton-icone--danger", title: libelle, "aria-label": libelle, onClick: action }, "✕");
 }
 
+/**
+ * Références vers des prestations ou des catégories retirées (incompatibilités,
+ * « options de ») : supprimées, sinon la grille ne pourrait plus être enregistrée.
+ */
+function nettoyerReferences(g) {
+  const prestations = new Set(g.categories.flatMap((c) => c.prestations.map((p) => p.id)).filter(Boolean));
+  const categories = new Set(g.categories.map((c) => c.id).filter(Boolean));
+  for (const c of g.categories) {
+    if (c.options_de && !categories.has(c.options_de)) delete c.options_de;
+    for (const p of c.prestations) {
+      if (!p.incompatible_avec) continue;
+      p.incompatible_avec = p.incompatible_avec.filter((id) => id !== p.id && prestations.has(id));
+      if (!p.incompatible_avec.length) delete p.incompatible_avec;
+    }
+  }
+}
+
 /* ---------- Sections ---------- */
 
 function sectionEmetteur(g) {
@@ -154,13 +171,20 @@ function rangeePrestation(g, categorie, p, redessiner) {
     h("td", { "data-titre": "Prestation" }, texte(p, "nom", { "aria-label": "Nom", placeholder: "Nom" }), texte(p, "description", { "aria-label": "Description", placeholder: "Description (facultative)", class: "discret" }), h("span", { class: "ligne__ref" }, p.id || "nouvelle"), choixIncompatibilites(g, p)),
     h("td", { "data-titre": "Prix" }, h("div", { class: "avec-unite" }, enPourcentage ? nombre(p, "prix_pourcentage", { facteur: 100, "aria-label": "Pourcentage" }) : nombre(p, "prix", { "aria-label": "Prix HT" }), typePrix)),
     h("td", { "data-titre": "Unité" }, texte(p, "unite", { "aria-label": "Unité", list: "unites-grille" })),
-    h("td", { "data-titre": "Délai (jours)" }, nombre(p, "delai_jours", { entier: true, "aria-label": "Délai en jours" })),
+    h(
+      "td",
+      { "data-titre": "Délai (jours)" },
+      nombre(p, "delai_jours", { entier: true, "aria-label": "Délai en jours" }),
+      // Livraison express : 2 divise par deux le délai suggéré dans les devis
+      nombre(p, "divise_delai", { "aria-label": "Divise le délai d'exécution par", placeholder: "÷", title: "Divise le délai suggéré par (2 pour une livraison express)", class: "nombre grille__diviseur" })
+    ),
     h("td", { "data-titre": "À partir de" }, caseACocher(p, "a_partir_de", "à partir de")),
     h(
       "td",
       { class: "ligne__actions" },
       boutonRetirer("Retirer la prestation", () => {
         categorie.prestations.splice(categorie.prestations.indexOf(p), 1);
+        nettoyerReferences(g);
         marquerModifie();
         redessiner();
       })
@@ -264,6 +288,7 @@ function sectionPrestations(g) {
             boutonRetirer("Retirer la catégorie", async () => {
               if (categorie.prestations.length && !(await confirmer({ titre: `Retirer « ${categorie.nom} » ?`, message: "Ses prestations disparaîtront de la grille (les documents existants ne changent pas).", bouton: "Retirer", danger: true }))) return;
               g.categories.splice(g.categories.indexOf(categorie), 1);
+              nettoyerReferences(g);
               marquerModifie();
               redessiner();
             })
@@ -522,6 +547,7 @@ export async function pageGrille() {
         agir(enregistrer, async () => {
           erreurs.replaceChildren();
           completerIdentifiants();
+          nettoyerReferences(g);
           g.date = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date());
           try {
             await api("/grille", { methode: "PUT", corps: { contenu: g } });

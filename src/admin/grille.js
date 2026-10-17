@@ -10,6 +10,7 @@
    ========================================================================== */
 
 import { ErreurMetier } from "./http.js";
+import { empreinteSha256 } from "./archives.js";
 import { enPointsDeBase } from "../../public/admin/js/lib/format.js";
 
 const REGIMES_TVA = ["franchise_en_base", "assujetti"];
@@ -32,10 +33,8 @@ export async function enregistrerGrille(app, contenu, empreinteFichier = null) {
   return { id: ligne.id, contenu, cree_le: ligne.cree_le };
 }
 
-async function empreinteGrille(contenu) {
-  const octets = new TextEncoder().encode(JSON.stringify(contenu));
-  const condensat = await crypto.subtle.digest("SHA-256", octets);
-  return [...new Uint8Array(condensat)].map((o) => o.toString(16).padStart(2, "0")).join("");
+function empreinteGrille(contenu) {
+  return empreinteSha256(new TextEncoder().encode(JSON.stringify(contenu)));
 }
 
 /**
@@ -199,6 +198,7 @@ export function validerGrille(g) {
       if (aPourcentage) exiger(estFraction(p.prix_pourcentage), `${ici} : le pourcentage doit être une fraction (0.25 pour 25 %).`);
       if (p?.delai_jours !== undefined) exiger(estEntierPositif(p.delai_jours), `${ici} : le délai doit être un nombre de jours.`);
       if (p?.a_partir_de !== undefined) exiger(typeof p.a_partir_de === "boolean", `${ici} : « à partir de » doit valoir true ou false.`);
+      if (p?.divise_delai !== undefined) exiger(estNombre(p.divise_delai) && p.divise_delai >= 1, `${ici} : divise_delai doit être un nombre supérieur ou égal à 1.`);
     }
   }
 

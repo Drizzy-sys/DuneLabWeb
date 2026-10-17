@@ -156,11 +156,13 @@ function editeurDevis(devis, grille, clients) {
     // Délai d'exécution suggéré d'après la grille (le plus long des prestations choisies)
     const prestations = (g.categories || []).flatMap((c) => c.prestations || []);
     const delais = l.map((x) => prestations.find((p) => p.id === x.ref)?.delai_jours).filter(Boolean);
-    const express = l.some((x) => x.ref === "opt-urgence");
+    // Une prestation de la grille peut diviser le délai (livraison express : divise_delai 2)
+    const accelerateurs = l.map((x) => prestations.find((p) => p.id === x.ref)).filter((p) => p?.divise_delai > 1);
+    const diviseur = accelerateurs.reduce((d, p) => d * p.divise_delai, 1);
     if (delais.length) {
-      const jours = Math.ceil(Math.max(...delais) / (express ? 2 : 1));
+      const jours = Math.ceil(Math.max(...delais) / diviseur);
       suggestion.replaceChildren(
-        `D'après la grille : ${jours} jours${express ? " (livraison express)" : ""}. `,
+        `D'après la grille : ${jours} jours${accelerateurs.length ? ` (${accelerateurs.map((p) => p.nom.toLowerCase()).join(", ")})` : ""}. `,
         h("button", { type: "button", class: "lien", onClick: () => { delai.value = `${jours} jours après validation du devis`; marquerModifie(); } }, "Utiliser")
       );
     } else {
@@ -212,8 +214,8 @@ function editeurDevis(devis, grille, clients) {
           bouton: "Marquer comme envoyé",
         });
         if (!ok) return;
-        await api(`/devis/${devis.id}/envoyer`, { methode: "POST" });
-        notifier("Devis envoyé et archivé.");
+        const envoye = await api(`/devis/${devis.id}/envoyer`, { methode: "POST" });
+        notifier(envoye.avertissement || "Devis envoyé et archivé.", envoye.avertissement ? "erreur" : "succes");
         rafraichir();
       })
     );
@@ -388,6 +390,8 @@ function sectionFacturation(devis) {
             {},
             devis.echeancier.map((etape) => {
               const factures = devis.factures.filter((f) => f.etape === etape.rang);
+              // Une étape dont la facture a été annulée par avoir se refacture
+              const active = factures.some((f) => f.statut_affiche !== "annulee");
               const libelle = { acompte: "Facturer l'acompte", intermediaire: "Facturer l'étape", solde: "Facturer le solde" }[etape.type];
               return h(
                 "tr",
@@ -398,11 +402,9 @@ function sectionFacturation(devis) {
                 h(
                   "td",
                   { "data-titre": "Facture" },
-                  factures.length
-                    ? factures.map((f) => h("span", { class: "pile-ligne" }, lienFacture(f), " ", badgeStatut(f.statut === "brouillon" ? "brouillon" : f.statut === "payee" ? "payee" : "emise")))
-                    : devis.statut === "accepte"
-                      ? boutonFacturer(devis, etape.rang, libelle)
-                      : "—"
+                  factures.map((f) => h("span", { class: "pile-ligne" }, lienFacture(f), " ", badgeStatut(f.statut_affiche))),
+                  !active && devis.statut === "accepte" ? boutonFacturer(devis, etape.rang, libelle) : null,
+                  !factures.length && devis.statut !== "accepte" ? "—" : null
                 )
               );
             })
@@ -430,8 +432,8 @@ function sectionAbonnement(devis) {
     b.addEventListener("click", () =>
       agir(b, async () => {
         // Forfait pas encore livré (aucune facture de solde émise) : on demande avant de démarrer
-        const livre = !devis.calcul.lignes.length || devis.factures.some((f) => f.type === "solde" && f.statut !== "brouillon");
-        if (!livre && !factures.length) {
+        // Livré : solde émis (forfait) ou facture ponctuelle émise (régie, abonnement)
+        if (!devis.livre && !factures.length) {
           const ok = await confirmer({
             titre: "Le projet n'est pas encore livré",
             message: "Aucune facture de solde n'est émise : l'abonnement démarre normalement à la livraison. Le faire commencer aujourd'hui ?",
@@ -461,12 +463,12 @@ function sectionAbonnement(devis) {
           "ul",
           {},
           factures.map((f) =>
-            h("li", {}, h("a", { href: `#/factures/${f.id}` }, f.numero || "Brouillon"), ` · du ${date(f.prestation_debut)} au ${date(f.prestation_fin)} · `, badgeStatut(f.statut === "brouillon" ? "brouillon" : f.statut === "payee" ? "payee" : "emise"))
+            h("li", {}, h("a", { href: `#/factures/${f.id}` }, f.numero || "Brouillon"), ` · du ${date(f.prestation_debut)} au ${date(f.prestation_fin)} · `, badgeStatut(f.statut_affiche))
           )
         )
       : vide("Aucune période facturée."),
     devis.statut === "accepte" ? h("div", { class: "actions" }, periodes.map((p) => bouton(p.unite))) : null,
-    h("p", { class: "discret" }, "La première période commence à la livraison (date de la facture de solde), les suivantes s'enchaînent. Ces factures comptent dans le chiffre d'affaires et le suivi du seuil de franchise.")
+    h("p", { class: "discret" }, "La première période commence à la livraison (facture de solde, ou première facture ponctuelle hors forfait). Les suivantes sont comptées depuis cette date, sans décalage. Ces factures comptent dans le chiffre d'affaires et le suivi du seuil de franchise.")
   );
 }
 
@@ -487,8 +489,7 @@ function suiviDevis(devis, g) {
       onSubmit: (e) => {
         e.preventDefault();
         agir(bouton, async () => {
-          await api(`/devis/${devis.id}/suivi`, { methode: "PUT", corps: { notes: notes.value, cadrage: cadrage.lire() } });
-          marquerModifie(false);
+          await enregistrer();
           notifier("Cadrage et notes enregistrés.");
         });
       },

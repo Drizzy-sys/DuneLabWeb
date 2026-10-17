@@ -165,7 +165,7 @@ const ROUTES = [
   ["POST", /^\/factures\/(\d+)\/emettre$/, (app, p) => emettreFacture(app, id(p))],
   ["POST", /^\/factures\/(\d+)\/paiement$/, (app, p, corps) => enregistrerPaiement(app, id(p), corps)],
   ["DELETE", /^\/factures\/(\d+)\/paiement$/, (app, p) => annulerPaiement(app, id(p))],
-  ["POST", /^\/factures\/(\d+)\/avoir$/, (app, p) => creerAvoir(app, id(p))],
+  ["POST", /^\/factures\/(\d+)\/avoir$/, (app, p, corps) => creerAvoir(app, id(p), { partiel: corps?.partiel === true })],
   ["POST", /^\/factures\/(\d+)\/transmettre$/, async (app, p) => (await transmettreFacture(app, id(p)), lireFacture(app, id(p)))],
   ["POST", /^\/factures\/(\d+)\/dupliquer$/, (app, p) => dupliquerFacture(app, id(p))],
   ["PUT", /^\/factures\/(\d+)\/notes$/, (app, p, corps) => modifierNotes(app, id(p), corps?.notes)],
@@ -203,7 +203,7 @@ async function api(request, env, url) {
   const route = candidates.find(([m]) => m === methode);
   if (!route) {
     if (candidates.length) return json({ erreur: "Méthode non autorisée." }, 405);
-    return json({ erreur: "Introuvable." }, 404);
+    return json({ erreur: "Adresse d'API inconnue : rechargez la page (Ctrl+F5) si l'admin vient d'être mis à jour." }, 404);
   }
   try {
     const corps = await lireCorps(request, url);

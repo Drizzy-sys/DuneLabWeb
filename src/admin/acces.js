@@ -17,8 +17,11 @@
 
 const MARGE_HORLOGE = 60; // secondes tolérées sur exp / nbf
 const DUREE_CACHE_CLES = 60 * 60 * 1000;
+// Rechargement forcé (clé inconnue) au plus une fois par minute : un jeton
+// forgé avec un « kid » au hasard ne déclenche pas un appel à chaque requête
+const INTERVALLE_RECHARGEMENT = 60 * 1000;
 
-let cacheCles = { equipe: null, cles: null, expire: 0 };
+let cacheCles = { equipe: null, cles: null, expire: 0, recharge: 0 };
 
 function base64UrlEnOctets(texte) {
   const base64 = texte.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(texte.length / 4) * 4, "=");
@@ -46,17 +49,18 @@ function reglageValide(valeur) {
 }
 
 async function clesPubliques(equipe, chercher, forcer = false) {
-  if (!forcer && cacheCles.equipe === equipe && cacheCles.expire > Date.now()) return cacheCles.cles;
+  const enCache = cacheCles.equipe === equipe && cacheCles.expire > Date.now();
+  if (enCache && (!forcer || Date.now() - cacheCles.recharge < INTERVALLE_RECHARGEMENT)) return cacheCles.cles;
   const reponse = await chercher(`${equipe}/cdn-cgi/access/certs`);
   if (!reponse.ok) throw new Error(`clés Access indisponibles (${reponse.status})`);
   const { keys } = await reponse.json();
-  cacheCles = { equipe, cles: keys || [], expire: Date.now() + DUREE_CACHE_CLES };
+  cacheCles = { equipe, cles: keys || [], expire: Date.now() + DUREE_CACHE_CLES, recharge: Date.now() };
   return cacheCles.cles;
 }
 
 /** Vide le cache des clés (tests) */
 export function oublierClesAccess() {
-  cacheCles = { equipe: null, cles: null, expire: 0 };
+  cacheCles = { equipe: null, cles: null, expire: 0, recharge: 0 };
 }
 
 /**

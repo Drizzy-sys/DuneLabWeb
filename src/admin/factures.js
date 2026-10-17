@@ -45,7 +45,7 @@ export function statutFacture(f, aujourdhui) {
 export const SQL_LISTE_FACTURES = `
   SELECT f.id, f.serie, f.numero, f.type, f.statut, f.client_id, c.nom AS client_nom, c.siren AS client_siren,
     f.devis_id, d.numero AS devis_numero, f.facture_origine_id, o.numero AS origine_numero,
-    f.periodicite, f.objet, f.date_emission, f.prestation_debut, f.prestation_fin, f.date_echeance,
+    f.etape, f.periodicite, f.objet, f.date_emission, f.prestation_debut, f.prestation_fin, f.date_echeance,
     f.montant_ht, f.montant_tva, f.montant_ttc, f.date_paiement, f.montant_paye, f.pdf_cle, f.pdf_sha256,
     COALESCE((SELECT SUM(a.montant_ttc) FROM factures a
               WHERE a.facture_origine_id = f.id AND a.statut <> 'brouillon'), 0) AS avoirs_ttc
@@ -81,7 +81,7 @@ export async function lireFacture(app, id) {
   const f = await ligneFacture(app, id);
   const resume = await app.db.prepare(`${SQL_LISTE_FACTURES} WHERE f.id = ?`).bind(id).first();
   const { results: avoirs } = await app.db
-    .prepare("SELECT id, numero, statut, date_emission, montant_ht, montant_ttc FROM factures WHERE facture_origine_id = ? ORDER BY id")
+    .prepare("SELECT id, numero, statut, date_emission, montant_ht, montant_tva, montant_ttc FROM factures WHERE facture_origine_id = ? ORDER BY id")
     .bind(id)
     .all();
   const calcul = calculerDocument({ lignes: f.lignes, remise: f.remise, taux_tva: f.taux_tva, deductions: f.deductions });
@@ -163,7 +163,7 @@ export async function modifierFacture(app, id, donnees) {
   const champs = validerFacture({ ...donnees, client_id: f.type === "standard" ? donnees?.client_id : f.client_id });
   const origine = f.facture_origine_id ? await ligneFacture(app, f.facture_origine_id) : null;
   const { contexte } = await contexteActuel(app, champs.client_id, origine);
-  const deductions = f.type === "solde" ? await deductionsDuDevis(app, f.devis_id) : [];
+  const deductions = await deductionsDe(app, f);
   const calcul = calculerDocument({ lignes: champs.lignes, remise: champs.remise, taux_tva: contexte.tva.taux, deductions });
   await app.db
     .prepare(
@@ -214,6 +214,14 @@ export async function dupliquerFacture(app, id) {
 
 /* ---------- Factures issues d'un devis accepté ---------- */
 
+// Déductions d'un document : un solde déduit les acomptes émis (recalculés),
+// un avoir garde celles reprises de sa facture d'origine
+async function deductionsDe(app, f) {
+  if (f.type === "solde") return deductionsDuDevis(app, f.devis_id);
+  if (f.type === "avoir") return f.deductions || [];
+  return [];
+}
+
 // Acomptes et factures intermédiaires émis pour un devis, nets de leurs avoirs
 async function deductionsDuDevis(app, devisId) {
   const { results } = await app.db
@@ -237,6 +245,32 @@ async function deductionsDuDevis(app, devisId) {
 }
 
 /**
+ * Ordre de l'échéancier, sans quoi le client paierait deux fois :
+ * pas de solde tant qu'un acompte ou une étape intermédiaire est encore en
+ * brouillon (le solde ne déduit que les acomptes émis), et plus d'acompte ni
+ * d'étape intermédiaire une fois le solde facturé.
+ */
+async function verifierOrdreEcheancier(app, devisId, type, idCourant = null) {
+  if (!["acompte", "intermediaire", "solde"].includes(type)) return;
+  const { results } = await app.db
+    .prepare(`${SQL_LISTE_FACTURES} WHERE f.devis_id = ? AND f.serie = 'F' AND f.type IN ('acompte', 'intermediaire', 'solde') AND f.id IS NOT ?`)
+    .bind(devisId, idCourant)
+    .all();
+  const factures = results.map((e) => enrichirFacture(e, app.aujourdhui));
+  if (type === "solde") {
+    const enAttente = factures.find((f) => f.type !== "solde" && f.statut === "brouillon");
+    if (enAttente) {
+      throw new ErreurMetier("Une étape précédente est encore en brouillon : émettez-la ou supprimez-la avant le solde, qui déduit les acomptes émis.", 409, { facture_id: enAttente.id });
+    }
+  } else {
+    const solde = factures.find((f) => f.type === "solde" && f.statut_affiche !== "annulee");
+    if (solde) {
+      throw new ErreurMetier(`Le solde est déjà facturé (${solde.numero || "brouillon"}) : plus d'acompte ni d'étape intermédiaire pour ce devis.`, 409, { facture_id: solde.id });
+    }
+  }
+}
+
+/**
  * Crée le brouillon de facture d'une étape de l'échéancier (forfait),
  * ou la facture du devis entier (régie, abonnement : rang null).
  */
@@ -257,6 +291,7 @@ export async function creerFactureDepuisDevis(app, devisId, rang) {
     const echeancier = calculerEcheancier(calculDevis.total_ht, calculDevis.taux_tva, devis.contexte.conditions.echeancier);
     etape = echeancier[rang];
     if (!etape) throw new ErreurMetier("Étape d'échéancier inconnue.", 422);
+    await verifierOrdreEcheancier(app, devis.id, etape.type);
   } else if (rang !== null && rang !== undefined) {
     throw new ErreurMetier("Ce devis n'a pas d'échéancier.", 422);
   }
@@ -312,21 +347,71 @@ export async function creerFactureDepuisDevis(app, devisId, rang) {
 
 /* ---------- Abonnements issus d'un devis ---------- */
 
-// Livraison : date de prestation de la facture de solde émise, sinon aujourd'hui
-async function dateDeLivraison(app, devisId) {
-  const solde = await app.db
-    .prepare("SELECT prestation_debut FROM factures WHERE devis_id = ? AND type = 'solde' AND statut <> 'brouillon' ORDER BY id DESC LIMIT 1")
-    .bind(devisId)
-    .first();
-  return solde?.prestation_debut || app.aujourdhui;
+/**
+ * État des abonnements, en deux requêtes groupées (un devis, ou tous) :
+ * - par devis et périodicité : début de la première période (ancre), fin de
+ *   la dernière, brouillon en cours ;
+ * - livraison des prestations ponctuelles : solde émis (forfait) ou, hors
+ *   forfait, première facture ponctuelle émise.
+ */
+export async function suiviAbonnements(app, devisId = null) {
+  const filtre = devisId ? "AND f.devis_id = ?" : "";
+  const lier = (requete) => (devisId ? requete.bind(devisId) : requete);
+  const [{ results: periodes }, { results: livraisons }] = await Promise.all([
+    lier(
+      app.db.prepare(
+        `SELECT f.devis_id, f.periodicite,
+           MIN(CASE WHEN f.statut <> 'brouillon' THEN f.prestation_debut END) AS ancre,
+           MAX(CASE WHEN f.statut <> 'brouillon' THEN COALESCE(f.prestation_fin, f.prestation_debut, f.date_emission) END) AS fin,
+           MAX(CASE WHEN f.statut = 'brouillon' THEN f.id END) AS brouillon_id
+         FROM factures f WHERE f.serie = 'F' AND f.periodicite IS NOT NULL ${filtre}
+         GROUP BY f.devis_id, f.periodicite`
+      )
+    ).all(),
+    lier(
+      app.db.prepare(
+        `SELECT f.devis_id, MIN(f.prestation_debut) AS livre_le
+         FROM factures f JOIN devis d ON d.id = f.devis_id
+         WHERE f.serie = 'F' AND f.statut <> 'brouillon' AND f.periodicite IS NULL
+           AND (f.type = 'solde' OR d.mode <> 'forfait') ${filtre}
+         GROUP BY f.devis_id`
+      )
+    ).all(),
+  ]);
+  return {
+    periode: (id, periodicite) => periodes.find((p) => p.devis_id === id && p.periodicite === periodicite) || null,
+    livraison: (id) => livraisons.find((l) => l.devis_id === id)?.livre_le || null,
+  };
+}
+
+/**
+ * Période suivante d'un abonnement. Les périodes sont comptées depuis la
+ * première (l'ancre) et ne dérivent pas : à partir du 31/01, 31/01 → 27/02,
+ * 28/02 → 30/03, 31/03 → 29/04… La première commence à la livraison (ou tout
+ * de suite pour un devis sans prestation ponctuelle).
+ */
+function periodeSuivante(app, devis, suivi, periodicite) {
+  const pas = PERIODES[periodicite];
+  const etat = suivi.periode(devis.id, periodicite);
+  if (etat?.ancre) {
+    let mois = pas;
+    while (ajouterMois(etat.ancre, mois) <= etat.fin && mois < 1200) mois += pas;
+    return { debut: ajouterMois(etat.ancre, mois), fin: ajouterJours(ajouterMois(etat.ancre, mois + pas), -1), premiere: false };
+  }
+  const debut = suivi.livraison(devis.id) || app.aujourdhui;
+  return { debut, fin: ajouterJours(ajouterMois(debut, pas), -1), premiere: true };
+}
+
+/** Le projet est-il livré ? (sans prestation ponctuelle, l'abonnement démarre tout de suite) */
+export function devisLivre(devis, suivi) {
+  return !devis.lignes.some((l) => !estLigneRecurrente(l)) || Boolean(suivi.livraison(devis.id));
 }
 
 /**
  * Brouillon de facture d'abonnement d'un devis accepté, pour une période
- * (« mois » ou « an ») : reprend les lignes de cette périodicité. La première
- * période commence à la livraison, les suivantes s'enchaînent sans trou ni
- * chevauchement. Facture ordinaire : elle compte dans le chiffre d'affaires
- * encaissé et le suivi du seuil de franchise.
+ * (« mois » ou « an ») : reprend les lignes de cette périodicité. Facture
+ * ordinaire : elle compte dans le chiffre d'affaires encaissé et le suivi du
+ * seuil de franchise.
  */
 export async function creerFactureAbonnement(app, devisId, periodicite) {
   if (!Object.hasOwn(PERIODES, periodicite)) throw new ErreurMetier("Périodicité « mois » ou « an » attendue.", 422);
@@ -337,18 +422,11 @@ export async function creerFactureAbonnement(app, devisId, periodicite) {
   const lignes = devis.lignes.filter((l) => periodeDeLigne(l) === periodicite);
   if (!lignes.length) throw new ErreurMetier(`Ce devis n'a pas d'abonnement ${periodicite === "mois" ? "mensuel" : "annuel"}.`, 422);
 
-  const { results: precedentes } = await app.db
-    .prepare(
-      `SELECT id, statut, COALESCE(prestation_fin, prestation_debut, date_emission) AS fin
-       FROM factures WHERE devis_id = ? AND periodicite = ? AND serie = 'F'
-       ORDER BY fin DESC, id DESC`
-    )
-    .bind(devisId, periodicite)
-    .all();
-  const brouillon = precedentes.find((f) => f.statut === "brouillon");
-  if (brouillon) throw new ErreurMetier("Un brouillon d'abonnement existe déjà pour ce devis.", 409, { facture_id: brouillon.id });
+  const suivi = await suiviAbonnements(app, devisId);
+  const brouillon = suivi.periode(devisId, periodicite)?.brouillon_id;
+  if (brouillon) throw new ErreurMetier("Un brouillon d'abonnement existe déjà pour ce devis.", 409, { facture_id: brouillon });
 
-  const debut = precedentes.length ? ajouterJours(precedentes[0].fin, 1) : await dateDeLivraison(app, devis.id);
+  const { debut, fin } = periodeSuivante(app, devis, suivi, periodicite);
   return insererBrouillon(app, {
     type: "standard",
     client_id: devis.client_id,
@@ -356,51 +434,44 @@ export async function creerFactureAbonnement(app, devisId, periodicite) {
     periodicite,
     objet: `Abonnement${devis.objet ? ` : ${devis.objet}` : ""}`,
     prestation_debut: debut,
-    prestation_fin: ajouterJours(ajouterMois(debut, PERIODES[periodicite]), -1),
+    prestation_fin: fin,
     lignes,
   });
 }
 
 /**
  * Abonnements dont la période suivante est à facturer : devis accepté avec
- * des lignes « mois » ou « an », livré (ou sans forfait), dont la dernière
- * facture d'abonnement couvre une période terminée.
+ * des lignes « mois » ou « an », projet livré, et période suivante commencée.
+ * Trois requêtes en tout, quel que soit le nombre de devis.
  */
 export async function abonnementsAFacturer(app) {
-  const { results } = await app.db
-    .prepare(
-      `SELECT d.id, d.numero, d.objet, d.lignes, d.taux_tva, c.nom AS client_nom,
-         (SELECT COUNT(*) FROM factures s WHERE s.devis_id = d.id AND s.type = 'solde' AND s.statut <> 'brouillon') AS livre
-       FROM devis d JOIN clients c ON c.id = d.client_id
-       WHERE d.statut = 'accepte'`
-    )
-    .all();
+  const [{ results }, suivi] = await Promise.all([
+    app.db
+      .prepare(
+        `SELECT d.id, d.numero, d.objet, d.lignes, d.taux_tva, c.nom AS client_nom
+         FROM devis d JOIN clients c ON c.id = d.client_id WHERE d.statut = 'accepte'`
+      )
+      .all(),
+    suiviAbonnements(app),
+  ]);
   const aFacturer = [];
   for (const d of results) {
-    const lignes = JSON.parse(d.lignes);
-    const forfait = lignes.some((l) => !estLigneRecurrente(l));
+    const devis = { ...d, lignes: JSON.parse(d.lignes) };
+    if (!devisLivre(devis, suivi)) continue;
     for (const periodicite of Object.keys(PERIODES)) {
-      const lignesPeriode = lignes.filter((l) => periodeDeLigne(l) === periodicite);
-      if (!lignesPeriode.length) continue;
-      const derniere = await app.db
-        .prepare(
-          `SELECT statut, COALESCE(prestation_fin, prestation_debut, date_emission) AS fin FROM factures
-           WHERE devis_id = ? AND periodicite = ? AND serie = 'F' ORDER BY fin DESC, id DESC LIMIT 1`
-        )
-        .bind(d.id, periodicite)
-        .first();
-      if (derniere?.statut === "brouillon") continue;
-      const du = derniere ? derniere.fin < app.aujourdhui : !forfait || d.livre > 0;
-      if (!du) continue;
-      const calcul = calculerDocument({ lignes: lignesPeriode, taux_tva: d.taux_tva });
+      const lignesPeriode = devis.lignes.filter((l) => periodeDeLigne(l) === periodicite);
+      if (!lignesPeriode.length || suivi.periode(d.id, periodicite)?.brouillon_id) continue;
+      const { debut, premiere } = periodeSuivante(app, devis, suivi, periodicite);
+      if (debut > app.aujourdhui) continue;
       aFacturer.push({
         devis_id: d.id,
         devis_numero: d.numero,
         client_nom: d.client_nom,
         objet: d.objet,
         periodicite,
-        depuis: derniere ? ajouterJours(derniere.fin, 1) : null,
-        montant_ht: calcul.montant_ht,
+        depuis: debut,
+        premiere,
+        montant_ht: calculerDocument({ lignes: lignesPeriode, taux_tva: d.taux_tva }).montant_ht,
       });
     }
   }
@@ -409,8 +480,15 @@ export async function abonnementsAFacturer(app) {
 
 /* ---------- Avoirs ---------- */
 
-/** Brouillon d'avoir sur une facture émise (annulation totale par défaut, modifiable) */
-export async function creerAvoir(app, factureId) {
+/**
+ * Brouillon d'avoir sur une facture émise.
+ * Total (par défaut) : annule tout ce qui reste à payer. L'avoir reprend les
+ *   lignes, la remise et les déductions de la facture (acomptes d'un solde) et
+ *   déduit les avoirs déjà émis : son montant est exactement le reste, HT et
+ *   TVA, au centime près.
+ * Partiel : une ligne libre à compléter (montant remboursé ou déduit).
+ */
+export async function creerAvoir(app, factureId, { partiel = false } = {}) {
   const origine = await lireFacture(app, factureId);
   if (origine.serie !== "F" || origine.statut === "brouillon") {
     throw new ErreurMetier("Un avoir se fait sur une facture émise.");
@@ -419,30 +497,32 @@ export async function creerAvoir(app, factureId) {
     throw new ErreurMetier("Un avoir brouillon existe déjà pour cette facture.", 409, { facture_id: origine.avoirs.find((a) => a.statut === "brouillon").id });
   }
   if (origine.montant_ttc - origine.avoirs_ttc <= 0) throw new ErreurMetier("Cette facture est déjà entièrement annulée par avoir.");
-  const resteHt = origine.montant_ht - origine.avoirs.filter((a) => a.statut !== "brouillon").reduce((s, a) => s + a.montant_ht, 0);
 
-  // Facture simple sans avoir précédent : on reprend ses lignes ; sinon une ligne du montant restant
-  const reprendreLignes = origine.deductions.length === 0 && origine.avoirs_ttc === 0;
-  const lignes = reprendreLignes
-    ? origine.lignes
-    : [
+  const base = { type: "avoir", client_id: origine.client_id, origine, objet: `Avoir sur la facture ${origine.numero}` };
+  if (partiel) {
+    return insererBrouillon(app, {
+      ...base,
+      lignes: [
         {
           ref: null,
-          designation: `Annulation de la facture ${origine.numero}`,
+          designation: `Avoir partiel sur la facture ${origine.numero}`,
           description: `Facture du ${formaterDate(origine.date_emission)}`,
           unite: "forfait",
           quantite: 1,
-          prix_unitaire: resteHt,
+          prix_unitaire: 0,
           pourcentage: null,
         },
-      ];
+      ],
+    });
+  }
+  const avoirsEmis = origine.avoirs
+    .filter((a) => a.statut !== "brouillon")
+    .map((a) => ({ facture_id: a.id, numero: a.numero, date_emission: a.date_emission, montant_ht: a.montant_ht, montant_tva: a.montant_tva, montant_ttc: a.montant_ttc }));
   return insererBrouillon(app, {
-    type: "avoir",
-    client_id: origine.client_id,
-    origine,
-    objet: `Avoir sur la facture ${origine.numero}`,
-    lignes,
-    remise: reprendreLignes ? origine.remise : null,
+    ...base,
+    lignes: origine.lignes,
+    remise: origine.remise,
+    deductions: [...origine.deductions, ...avoirsEmis],
   });
 }
 
@@ -460,7 +540,8 @@ export async function emettreFacture(app, id) {
     throw new ErreurMetier(`Complétez d'abord vos informations (page Grille tarifaire, Émetteur) : ${manquants.join(", ")}.`, 422);
   }
 
-  const deductions = f.type === "solde" ? await deductionsDuDevis(app, f.devis_id) : [];
+  if (f.devis_id) await verifierOrdreEcheancier(app, f.devis_id, f.type, f.id);
+  const deductions = await deductionsDe(app, f);
   const calcul = calculerDocument({ lignes: f.lignes, remise: f.remise, taux_tva: contexte.tva.taux, deductions });
   if (calcul.montant_ttc <= 0) throw new ErreurMetier("Le montant à facturer doit être positif.", 422);
   if (origine && calcul.montant_ttc > origine.montant_ttc - origine.avoirs_ttc) {
@@ -572,7 +653,7 @@ export async function pdfFacture(app, id) {
   if (f.statut === "brouillon") {
     const origine = f.facture_origine_id ? await ligneFacture(app, f.facture_origine_id) : null;
     const { contexte } = await contexteActuel(app, f.client_id, origine);
-    const deductions = f.type === "solde" ? await deductionsDuDevis(app, f.devis_id) : [];
+    const deductions = await deductionsDe(app, f);
     const octets = await produirePdf(app, { ...f, contexte, taux_tva: contexte.tva.taux, deductions });
     return { octets, nom: `${f.serie === "A" ? "avoir" : "facture"}-brouillon-${f.id}.pdf` };
   }

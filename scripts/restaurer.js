@@ -32,6 +32,9 @@ export function sauvegardeEnSql(donnees) {
   for (const table of TABLES) {
     for (const enregistrement of donnees.tables[table] || []) {
       const colonnes = Object.keys(enregistrement);
+      // Noms de colonnes recopiés dans le SQL : jamais autre chose qu'un identifiant simple
+      const suspecte = colonnes.find((c) => !/^[a-z_][a-z0-9_]*$/.test(c));
+      if (suspecte) throw new Error(`Colonne invalide dans la sauvegarde (${table}) : « ${suspecte} ».`);
       lignes.push(
         `INSERT INTO ${table} (${colonnes.join(", ")}) VALUES (${colonnes.map((c) => valeurSql(enregistrement[c])).join(", ")});`
       );

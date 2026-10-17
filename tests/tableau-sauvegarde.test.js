@@ -102,3 +102,8 @@ test("restauration : une sauvegarde rejouée dans une base neuve redonne exactem
   // Les triggers protègent aussi la base restaurée
   assert.throws(() => neuve.sqlite.prepare("DELETE FROM factures WHERE id = ?").run(f.id), /suppression interdite/);
 });
+
+test("restauration : une sauvegarde aux noms de colonnes trafiqués est refusée", () => {
+  const trafiquee = { format: "dunelab-admin-sauvegarde", exporte_le: "2026-10-17", tables: { clients: [{ "nom) VALUES ('x'); DROP TABLE factures; --": "x" }] } };
+  assert.throws(() => sauvegardeEnSql(trafiquee), /Colonne invalide/);
+});

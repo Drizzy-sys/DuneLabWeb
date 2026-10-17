@@ -50,16 +50,6 @@ export function formaterDate(iso) {
   return `${jour}/${mois}/${annee}`;
 }
 
-const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
-  "août", "septembre", "octobre", "novembre", "décembre"];
-
-/** « 2026-10-01 » → « 1er octobre 2026 » */
-export function formaterDateLongue(iso) {
-  if (!iso) return "";
-  const [annee, mois, jour] = iso.slice(0, 10).split("-").map(Number);
-  return `${jour === 1 ? "1er" : jour} ${MOIS[mois - 1]} ${annee}`;
-}
-
 /**
  * Lit un montant saisi en euros (« 1 800,50 », « 1800.5 », « 1 800 € »)
  * et renvoie des centimes, ou NaN si la saisie n'est pas un montant.

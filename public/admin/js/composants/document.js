@@ -330,7 +330,7 @@ export function choixRemise(remise, grille, surChangement) {
  */
 export function recapitulatif() {
   const element = h("dl", { class: "recap" });
-  function afficher({ lignes, remise, taux_tva, deductions = [] }, { titreFinal = "Total TTC", mention = "", devis = false, conditions = {} } = {}) {
+  function afficher({ lignes, remise, taux_tva, deductions = [] }, { titreFinal = "Total TTC", mention = "", devis = false, conditions = {}, libelleDeduction = "Déjà facturé" } = {}) {
     const c = devis ? calculerDevis({ lignes, remise, taux_tva }) : calculerDocument({ lignes, remise, taux_tva, deductions });
     const abonnement = phraseAbonnement(c.recurrent.periodes, conditions);
     const rangee = (terme, valeur, classe = "") => [h("dt", { class: classe }, terme), h("dd", { class: classe }, valeur)];
@@ -340,7 +340,7 @@ export function recapitulatif() {
       ...rangee("Total HT", formaterMontant(c.total_ht)),
       ...rangee(`TVA (${formaterPourcentage(c.taux_tva)})`, formaterMontant(c.total_tva)),
       ...(c.deductions.length ? rangee("Total TTC", formaterMontant(c.total_ttc)) : []),
-      ...c.deductions.flatMap((d) => rangee(`Déjà facturé : ${d.numero}`, formaterMontant(-d.montant_ttc))),
+      ...c.deductions.flatMap((d) => rangee(`${libelleDeduction} : ${d.numero}`, formaterMontant(-d.montant_ttc))),
       ...rangee(titreFinal, formaterMontant(c.montant_ttc), "recap__final"),
       ...(abonnement ? [h("dd", { class: "recap__abonnement" }, `${abonnement}.`)] : []),
       ...(mention ? [h("dd", { class: "recap__mention" }, mention)] : [])

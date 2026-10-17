@@ -38,23 +38,24 @@ export function niveauSeuil(encaisseHt, seuilCentimes) {
 }
 
 export async function tableauDeBord(app, annee = anneeDe(app.aujourdhui)) {
+  // La grille d'abord (elle peut être créée au premier appel), puis le reste en parallèle
   const grille = await grilleCourante(app);
-  const ca = await chiffreAffaires(app, annee);
+  const [ca, devis, { results }, { results: annees }, abonnements, fichierAImporter] = await Promise.all([
+    chiffreAffaires(app, annee),
+    listerDevis(app),
+    app.db.prepare(`${SQL_LISTE_FACTURES} WHERE f.serie = 'F' AND f.statut = 'emise' ORDER BY f.date_echeance, f.numero`).all(),
+    app.db
+      .prepare(
+        `SELECT DISTINCT substr(date_emission, 1, 4) AS annee FROM factures WHERE date_emission IS NOT NULL
+         UNION SELECT DISTINCT substr(date_paiement, 1, 4) FROM factures WHERE date_paiement IS NOT NULL`
+      )
+      .all(),
+    abonnementsAFacturer(app),
+    fichierGrilleAImporter(app),
+  ]);
   const franchise = grille.contenu.tva.regime === "franchise_en_base";
   const seuil = Math.round(grille.contenu.tva.seuil_franchise * 100);
-
-  const devis = await listerDevis(app);
-  const { results } = await app.db
-    .prepare(`${SQL_LISTE_FACTURES} WHERE f.serie = 'F' AND f.statut = 'emise' ORDER BY f.date_echeance, f.numero`)
-    .all();
   const aEncaisser = results.map((f) => enrichirFacture(f, app.aujourdhui)).filter((f) => f.reste_du > 0);
-
-  const { results: annees } = await app.db
-    .prepare(
-      `SELECT DISTINCT substr(date_emission, 1, 4) AS annee FROM factures WHERE date_emission IS NOT NULL
-       UNION SELECT DISTINCT substr(date_paiement, 1, 4) FROM factures WHERE date_paiement IS NOT NULL`
-    )
-    .all();
 
   return {
     annee,
@@ -68,8 +69,8 @@ export async function tableauDeBord(app, annee = anneeDe(app.aujourdhui)) {
     brouillons_devis: devis.filter((d) => d.statut === "brouillon").length,
     factures_en_retard: aEncaisser.filter((f) => f.statut_affiche === "en_retard"),
     factures_impayees: aEncaisser.filter((f) => f.statut_affiche === "emise"),
-    abonnements_a_facturer: await abonnementsAFacturer(app),
+    abonnements_a_facturer: abonnements,
     emetteur_incomplet: emetteurIncomplet(grille.contenu),
-    grille_fichier_a_importer: await fichierGrilleAImporter(app),
+    grille_fichier_a_importer: fichierAImporter,
   };
 }

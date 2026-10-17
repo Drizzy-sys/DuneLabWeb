@@ -102,3 +102,11 @@ test("accès local sans Access : seulement avec ADMIN_ACCES_LOCAL=1 et sur local
   assert.equal((await verifier(requete(null, { hote: "www.exemple.fr" }), local)).ok, false);
   assert.equal((await verifier(requete(null, { hote: "localhost:8787" }), ENV)).ok, false);
 });
+
+test("jetons forgés avec des clés inconnues : les clés Access ne sont pas rechargées à chaque requête", async () => {
+  for (let i = 0; i < 5; i++) {
+    const resultat = await verifier(requete(await jeton(contenuValide(), { kid: `hasard-${i}` })));
+    assert.equal(resultat.raison, "clé de signature inconnue");
+  }
+  assert.equal(appelsCles, 1); // chargées une fois, pas de rechargement forcé dans la minute
+});

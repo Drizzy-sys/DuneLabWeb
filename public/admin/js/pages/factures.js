@@ -112,7 +112,7 @@ function editeurFacture(facture, grille, clients) {
     if (erreurs.length || erreur) return;
     recap.afficher(
       { lignes: l, remise: r, taux_tva: tva, deductions: facture?.deductions || [] },
-      { titreFinal: avoir ? "Total de l'avoir TTC" : "Net à payer TTC", mention: tva ? "" : g.tva.mention_franchise }
+      { titreFinal: avoir ? "Total de l'avoir TTC" : "Net à payer TTC", mention: tva ? "" : g.tva.mention_franchise, libelleDeduction: avoir ? "Déjà déduit" : "Déjà facturé" }
     );
   }
 
@@ -351,20 +351,24 @@ function vueFactureEmise(f) {
   const actions = [h("a", { class: "bouton bouton--principal", href: lienApi(`/factures/${f.id}/pdf`), target: "_blank", rel: "noopener" }, "PDF")];
   if (!avoir) {
     if (f.statut_affiche !== "annulee") {
-      const boutonAvoir = h("button", { type: "button", class: "bouton" }, "Corriger par un avoir");
-      boutonAvoir.addEventListener("click", () =>
-        agir(boutonAvoir, async () => {
-          try {
-            const brouillon = await api(`/factures/${f.id}/avoir`, { methode: "POST" });
-            notifier("Brouillon d'avoir créé : ajustez-le si l'annulation est partielle, puis émettez-le.");
-            aller(`/factures/${brouillon.id}`);
-          } catch (erreur) {
-            if (erreur.details?.facture_id) aller(`/factures/${erreur.details.facture_id}`);
-            throw erreur;
-          }
-        })
-      );
-      actions.push(boutonAvoir);
+      // Avoir total : reprend exactement la facture ; partiel : une ligne libre à compléter
+      const boutonAvoir = (texte, partiel) => {
+        const bouton = h("button", { type: "button", class: "bouton" }, texte);
+        bouton.addEventListener("click", () =>
+          agir(bouton, async () => {
+            try {
+              const brouillon = await api(`/factures/${f.id}/avoir`, { methode: "POST", corps: { partiel } });
+              notifier(partiel ? "Brouillon d'avoir partiel créé : indiquez le montant, puis émettez-le." : "Brouillon d'avoir créé pour tout le reste de la facture : vérifiez-le, puis émettez-le.");
+              aller(`/factures/${brouillon.id}`);
+            } catch (erreur) {
+              if (erreur.details?.facture_id) aller(`/factures/${erreur.details.facture_id}`);
+              throw erreur;
+            }
+          })
+        );
+        return bouton;
+      };
+      actions.push(boutonAvoir("Annuler par un avoir", false), boutonAvoir("Avoir partiel", true));
     }
     const dupliquer = h("button", { type: "button", class: "bouton" }, "Dupliquer en brouillon");
     dupliquer.addEventListener("click", () =>
@@ -380,7 +384,7 @@ function vueFactureEmise(f) {
   const recap = recapitulatif();
   recap.afficher(
     { lignes: f.lignes, remise: f.remise, taux_tva: f.taux_tva, deductions: f.deductions },
-    { titreFinal: avoir ? "Total de l'avoir TTC" : "Net à payer TTC", mention: c.tva.mention }
+    { titreFinal: avoir ? "Total de l'avoir TTC" : "Net à payer TTC", mention: c.tva.mention, libelleDeduction: avoir ? "Déjà déduit" : "Déjà facturé" }
   );
   const periode = f.prestation_fin && f.prestation_fin !== f.prestation_debut ? `du ${date(f.prestation_debut)} au ${date(f.prestation_fin)}` : date(f.prestation_debut);
 
