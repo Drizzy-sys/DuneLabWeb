@@ -95,8 +95,8 @@
         "MAIL_TO": "contact@example.com",
         "MAIL_FROM": "formulaire@example.com",
         "ACCESS_TEAM_DOMAIN": "https://cool-feather-12aa.cloudflareaccess.com",
-        // AUD de l'application Access du Worker « dunelab-admin ». À COMPLÉTER.
-        "ACCESS_AUD": "À COMPLÉTER",
+        // AUD de l'application Access du Worker « dunelab-admin »
+        "ACCESS_AUD": "bb8081e085ce3ccef6b74a748f288501fe6f477e0959729d37024305aefb87b8",
         "FACTURATION_ELECTRONIQUE": "aucun"
       }
     }
