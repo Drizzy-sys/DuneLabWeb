@@ -66,6 +66,20 @@ Le site s'ouvre sur <http://localhost:8787/fr/>. En local, Turnstile utilise la 
 5. **Publication** : `npx wrangler login`, puis `npm run deploy`. Vous pouvez aussi relier le dépôt GitHub (*Workers & Pages* → *Create* → *Import a repository*, commande de déploiement `npx wrangler deploy`) pour publier automatiquement à chaque push.
 6. **Adresse du site** : Worker `dunelab` → *Settings* → *Domains & Routes* → ajouter `www.votre-domaine.fr` et `votre-domaine.fr`. Pour renvoyer le domaine nu vers `www` : *Rules* → *Redirect Rules* → modèle « Redirect from root to WWW ».
 
+## En attendant le nom de domaine : adresse provisoire workers.dev
+
+Le Worker se publie tel quel à l'adresse gratuite `https://dunelab.<sous-domaine>.workers.dev`, sans nom de domaine. C'est la même installation que la définitive : le jour où le domaine arrive, il suffit de l'ajouter. Cette adresse n'est pas indexée par les moteurs de recherche (règle `noindex` dans `public/_headers`, limitée aux adresses `*.workers.dev`).
+
+1. `npx wrangler login`. La première fois, Cloudflare demande de choisir le sous-domaine `workers.dev` du compte.
+2. Base D1, archives R2 et `npm run db:distant` : étapes 2 et 3 de « Mise en ligne (une seule fois) » dans la section admin plus bas.
+3. `npm run deploy`. L'adresse s'affiche à la fin. Le site est en ligne ; l'admin répond 404 tant qu'Access n'est pas réglé, ce qui est voulu.
+4. **Protéger l'admin** : Worker `dunelab` › *Settings* › *Domains & Routes* › ligne *workers.dev* › *Enable Cloudflare Access*. Dans *Manage Cloudflare Access*, limitez la politique à votre adresse e-mail. Reportez ensuite dans `wrangler.jsonc` le « Team domain », l'« Application Audience (AUD) Tag » de cette application et votre adresse (`ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `ADMIN_EMAIL`), puis relancez `npm run deploy`.
+5. **Formulaire de contact** (facultatif d'ici là) :
+   - Turnstile : créez un widget avec le nom d'hôte `dunelab.<sous-domaine>.workers.dev`.
+   - Resend : sans domaine vérifié, il n'envoie qu'à l'adresse de votre compte Resend, depuis `onboarding@resend.dev`. Mettez ces deux adresses dans `MAIL_TO` et `MAIL_FROM`.
+
+Quand le domaine est prêt : suivez « Mise en ligne sur Cloudflare » ci-dessous (DNS, *Domains & Routes*, Resend, Turnstile), étendez l'application Access aux chemins `admin` et `api/admin` du domaine, remplacez `example.com` partout, puis redéployez.
+
 ## Tester après la mise en ligne
 
 - La racine du domaine ouvre `/fr/`, le sélecteur FR / EN bascule sur la page équivalente, une adresse inexistante affiche la page 404.

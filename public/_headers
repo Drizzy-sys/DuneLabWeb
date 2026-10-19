@@ -13,3 +13,8 @@
 
 /assets/img/*
   Cache-Control: public, max-age=2592000
+
+# Adresse provisoire dunelab.<sous-domaine>.workers.dev (avant le nom de domaine) :
+# jamais indexée, pour ne pas faire doublon avec le futur domaine
+https://:worker.:subdomain.workers.dev/*
+  X-Robots-Tag: noindex

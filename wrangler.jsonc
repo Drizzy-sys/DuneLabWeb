@@ -22,8 +22,8 @@
     {
       "binding": "DB",
       "database_name": "dunelab-admin",
-      // À COMPLÉTER : identifiant affiché par la commande ci-dessus
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      // Base créée dans le tableau de bord (Storage & Databases › D1)
+      "database_id": "9fb89185-a3df-4bd5-ab7a-f6743fb0d0f5",
       "migrations_dir": "migrations"
     }
   ],
