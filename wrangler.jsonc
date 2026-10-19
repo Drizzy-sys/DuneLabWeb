@@ -49,12 +49,14 @@
     "MAIL_FROM": "formulaire@example.com",
 
     // Espace admin protégé par Cloudflare Access (voir README, « Espace admin »)
-    // Domaine de l'équipe Zero Trust. À COMPLÉTER.
-    "ACCESS_TEAM_DOMAIN": "https://À-COMPLÉTER.cloudflareaccess.com",
-    // « Application Audience (AUD) Tag » de l'application Access. À COMPLÉTER.
+    // Domaine de l'équipe Zero Trust
+    "ACCESS_TEAM_DOMAIN": "https://cool-feather-12aa.cloudflareaccess.com",
+    // Sur ce Worker public, l'admin reste fermé (404) : il est servi par
+    // « dunelab-admin » (voir « env » plus bas), derrière Access
     "ACCESS_AUD": "À COMPLÉTER",
-    // Seule adresse autorisée à ouvrir l'admin. À COMPLÉTER.
-    "ADMIN_EMAIL": "À COMPLÉTER",
+    // La seule adresse autorisée (ADMIN_EMAIL) est un secret du Worker, pas une
+    // variable : le dépôt est public. Tableau de bord › Worker › Settings ›
+    // Variables and Secrets, ou npx wrangler secret put ADMIN_EMAIL.
 
     // Facturation électronique (obligatoire en septembre 2027) : plateforme agréée
     // à laquelle les factures émises sont transmises. « aucun » tant que rien n'est
@@ -62,5 +64,41 @@
     "FACTURATION_ELECTRONIQUE": "aucun"
   },
 
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+
+  // Admin publié à part : le même code sous le nom « dunelab-admin »
+  // (dunelab-admin.<sous-domaine>.workers.dev), entièrement derrière Cloudflare
+  // Access, pendant que le site « dunelab » reste public sans connexion.
+  // Déploiement : npx wrangler deploy --env admin. Variables et bindings ne
+  // s'héritent pas d'un environnement : ils sont redéclarés ici.
+  "env": {
+    "admin": {
+      "name": "dunelab-admin",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "dunelab-admin",
+          "database_id": "9fb89185-a3df-4bd5-ab7a-f6743fb0d0f5",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "ARCHIVES",
+          "bucket_name": "dunelab-archives",
+          "jurisdiction": "eu"
+        }
+      ],
+      // La sauvegarde nocturne tourne sur « dunelab » : pas de doublon ici
+      "triggers": { "crons": [] },
+      "vars": {
+        "MAIL_TO": "contact@example.com",
+        "MAIL_FROM": "formulaire@example.com",
+        "ACCESS_TEAM_DOMAIN": "https://cool-feather-12aa.cloudflareaccess.com",
+        // AUD de l'application Access du Worker « dunelab-admin ». À COMPLÉTER.
+        "ACCESS_AUD": "À COMPLÉTER",
+        "FACTURATION_ELECTRONIQUE": "aucun"
+      }
+    }
+  }
 }

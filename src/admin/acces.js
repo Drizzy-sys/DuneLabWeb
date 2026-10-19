@@ -8,10 +8,10 @@
    vérification, l'admin resterait joignable par l'adresse *.workers.dev ou
    une URL de prévisualisation, qui ne passent pas par Access.
 
-   Réglages (wrangler.jsonc, section « vars ») :
-     ACCESS_TEAM_DOMAIN  https://<équipe>.cloudflareaccess.com
-     ACCESS_AUD          « Application Audience (AUD) Tag » de l'application Access
-     ADMIN_EMAIL         seule adresse autorisée
+   Réglages :
+     ACCESS_TEAM_DOMAIN  https://<équipe>.cloudflareaccess.com (wrangler.jsonc, « vars »)
+     ACCESS_AUD          « Application Audience (AUD) Tag » de l'application Access (idem)
+     ADMIN_EMAIL         seule adresse autorisée : secret du Worker, hors du dépôt public
    En local uniquement (fichier .dev.vars) : ADMIN_ACCES_LOCAL=1 sur localhost.
    ========================================================================== */
 

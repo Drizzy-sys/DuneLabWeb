@@ -73,7 +73,12 @@ Le Worker se publie tel quel à l'adresse gratuite `https://dunelab.<sous-domain
 1. `npx wrangler login`. La première fois, Cloudflare demande de choisir le sous-domaine `workers.dev` du compte.
 2. Base D1, archives R2 et `npm run db:distant` : étapes 2 et 3 de « Mise en ligne (une seule fois) » dans la section admin plus bas.
 3. `npm run deploy`. L'adresse s'affiche à la fin. Le site est en ligne ; l'admin répond 404 tant qu'Access n'est pas réglé, ce qui est voulu.
-4. **Protéger l'admin** : Worker `dunelab` › *Settings* › *Domains & Routes* › ligne *workers.dev* › *Enable Cloudflare Access*. Dans *Manage Cloudflare Access*, limitez la politique à votre adresse e-mail. Reportez ensuite dans `wrangler.jsonc` le « Team domain », l'« Application Audience (AUD) Tag » de cette application et votre adresse (`ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `ADMIN_EMAIL`), puis relancez `npm run deploy`.
+4. **L'admin, sur un Worker à part.** Sur workers.dev, Access protège une adresse entière, pas un chemin. Le même code est donc publié une seconde fois sous le nom `dunelab-admin` (section `env.admin` de `wrangler.jsonc`). Ce Worker est entièrement derrière Access, pendant que `dunelab` reste public ; sur `dunelab`, `/admin` répond 404.
+   - Création : *Workers & Pages* › *Create application* › *Import a repository*, même dépôt. Nom `dunelab-admin`, branche `master`, *Build command* `npm ci`, *Deploy command* `npx wrangler deploy --env admin`.
+   - Protection : Worker `dunelab-admin` › *Settings* › *Domains & Routes* › ligne *workers.dev* › *Enable Cloudflare Access*. *Scope* : **All traffic**, politique limitée à votre adresse e-mail.
+   - Reportez l'« Application Audience (AUD) Tag » dans `env.admin.vars.ACCESS_AUD` (`wrangler.jsonc`).
+   - Votre adresse va dans un **secret** du Worker `dunelab-admin`, pas dans le dépôt (public) : *Settings* › *Variables and Secrets* › *Add* › type *Secret*, nom `ADMIN_EMAIL`.
+   - L'admin est alors à `https://dunelab-admin.<sous-domaine>.workers.dev/admin/`. Ce montage peut rester après l'arrivée du domaine.
 5. **Formulaire de contact** (facultatif d'ici là) :
    - Turnstile : créez un widget avec le nom d'hôte `dunelab.<sous-domaine>.workers.dev`.
    - Resend : sans domaine vérifié, il n'envoie qu'à l'adresse de votre compte Resend, depuis `onboarding@resend.dev`. Mettez ces deux adresses dans `MAIL_TO` et `MAIL_FROM`.
@@ -127,7 +132,7 @@ Espace privé sous `/admin` pour créer devis, factures et avoirs à partir de l
 | SIREN, RCS, e-mail, IBAN | `data/grille.json`, section `emetteur`, avant la première mise en ligne, ou plus tard dans l'admin : *Grille tarifaire › Émetteur*. Tant qu'ils contiennent « À COMPLÉTER », l'envoi des devis et l'émission des factures sont bloqués. |
 | N° de TVA intracommunautaire | Même endroit, champ `tva_intracom`. Seulement le jour où vous passez assujetti à la TVA. |
 | Identifiant de la base D1 | `wrangler.jsonc`, `database_id` (étape 2 ci-dessous). |
-| Réglages Access | `wrangler.jsonc`, `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `ADMIN_EMAIL` (étape 4 ci-dessous). |
+| Réglages Access | `wrangler.jsonc`, `ACCESS_TEAM_DOMAIN` et `ACCESS_AUD` ; l'adresse autorisée dans le secret `ADMIN_EMAIL` (étape 4 ci-dessous). |
 
 Pénalités de retard : le texte par défaut retient « trois fois le taux d'intérêt légal ». Pour le changer, modifiez *Grille tarifaire › Mentions*.
 
@@ -167,7 +172,7 @@ Après les étapes de [Mise en ligne sur Cloudflare](#mise-en-ligne-sur-cloudfla
    - *Access › Applications › Add an application › Self-hosted* : nom « Admin Dune Lab », durée de session 24 h. Ajoutez deux destinations : `www.votre-domaine.fr` avec le chemin `admin`, et `www.votre-domaine.fr` avec le chemin `api/admin`.
    - Politique : *Allow*, *Include › Emails* : votre adresse. Méthode de connexion : *One-time PIN* (code par e-mail). Pour aller plus loin, ajoutez à la politique *Require › Country* : France. Une connexion depuis l'étranger sera alors refusée, même avec un code valide.
    - Le code arrive dans votre boîte mail : protégez-la par la double authentification. C'est elle qui garde l'admin.
-   - Reportez dans `wrangler.jsonc` : `ACCESS_TEAM_DOMAIN` = `https://<équipe>.cloudflareaccess.com` (*Settings › Custom Pages*, « Team domain ») ; `ACCESS_AUD` = « Application Audience (AUD) Tag » (page de l'application) ; `ADMIN_EMAIL` = la même adresse que dans la politique.
+   - Reportez dans `wrangler.jsonc` : `ACCESS_TEAM_DOMAIN` = `https://<équipe>.cloudflareaccess.com` (*Settings › Custom Pages*, « Team domain ») et `ACCESS_AUD` = « Application Audience (AUD) Tag » (page de l'application). L'adresse autorisée, la même que dans la politique, va dans un **secret** du Worker nommé `ADMIN_EMAIL` (*Settings › Variables and Secrets*), jamais dans le dépôt.
 5. **Publication** : `npm run deploy`.
 6. **Vérification** : `https://www.votre-domaine.fr/admin/` demande le code puis affiche le tableau de bord. `https://dunelab.<compte>.workers.dev/admin/` doit afficher la page 404. Le lendemain, vérifiez que `sauvegardes/quotidiennes/` contient un fichier dans R2.
 
